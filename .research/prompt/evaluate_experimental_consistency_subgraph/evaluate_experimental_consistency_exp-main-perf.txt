@@ -1,0 +1,232 @@
+
+Input:
+
+# Instructions
+You are a scientific research consistency evaluator. Your task is to evaluate a single experiment to determine:
+1. Whether it is consistent with the proposed method and experimental strategy
+2. Whether the results support the main claims (e.g., proposed method outperforms baseline)
+3. Whether it should be included in the research paper
+
+## Scope Constraints
+- Focus ONLY on evaluating consistency between the proposed method and experimental results
+- Do not suggest infrastructure changes (Docker, lock files, etc.)
+- Do not recommend development/testing procedures (unit tests, synthetic graphs, etc.)
+- Do not suggest implementation details or code improvements
+- Do not recommend data release or reproducibility practices
+- Do not require or suggest experiments on actual hardware (e.g., real edge devices, physical deployment)
+- Evaluate only: method-result alignment, experimental design adequacy, result interpretation validity, and statistical rigor within computational/simulation contexts
+
+Based on your analysis, provide:
+1. `consistency_feedback` (str): Detailed feedback explaining the consistency evaluation and suggestions for improvement
+2. `consistency_score` (int): A score from 1-10 indicating the quality and consistency of the experimental design and results
+
+## Evaluation Criteria
+
+### consistency_feedback (str)
+Provide specific feedback focused on **scientific consistency evaluation** and **clearly categorize the source of any issues**:
+
+**Problem Categorization - Identify which area(s) need improvement:**
+
+1. **Experimental Strategy Issues**:
+   - Evaluate if the experimental strategy is fundamentally sound for validating the proposed method
+   - Assess whether the experimental setup provides adequate scope and rigor
+   - Identify if the chosen metrics, baselines, or evaluation approach are appropriate
+
+2. **Implementation Issues**:
+   - Assess whether the generated code correctly implements the described experimental strategy
+   - Identify gaps between what the strategy specifies and what the code actually does
+   - Point out if the implementation fails to follow the experimental design
+
+3. **Result Interpretation Issues**:
+   - Assess alignment between claimed method and actual experimental results
+   - Identify gaps between theoretical claims and empirical evidence
+   - Point out contradictions between expected and observed outcomes
+   - **Critical**: Check if the proposed method demonstrates improvement over baseline
+
+**For each identified issue, clearly specify:**
+- Which category the problem falls into
+- What specific aspect needs improvement
+- How it affects the paper inclusion decision
+
+### consistency_score (int)
+Provide a numerical score (1-10) based on execution status and result quality:
+
+- **1-3: Critical Failure / Not Executed**
+  - The experiment failed to run (e.g., code crash, setup error)
+  - Produced no meaningful output
+  - Implementation was fundamentally flawed, invalidating the results
+  - The primary claims cannot be evaluated
+
+- **4-5: Executed, but Poor or Negative Results**
+  - The experiment ran correctly, but the results are negative
+  - The proposed method performs worse than or shows no meaningful improvement over the baseline
+  - The results contradict or fail to support the primary claims
+
+- **6-7: Executed, Positive but Not Conclusive Results**
+  - The experiment ran correctly and shows clear positive improvement over the baseline
+  - Results align with the primary claims
+  - Evidence is weakened by minor issues in scientific rigor (e.g., single-seed runs, lack of statistical tests, limited scope)
+  - The results are suggestive but not definitive
+
+- **8-10: Executed, Conclusive and High-Impact Results**
+  - The experiment ran correctly and provides strong, reliable evidence supporting the primary claims
+  - Results are clearly superior to the baseline
+  - Experimental design demonstrates high scientific rigor (e.g., multiple runs, fair comparisons, statistical validation)
+  - Score of 9-10 indicates particularly impactful and insightful magnitude of improvement
+
+## Context
+
+**Proposed Method:** {
+    "Open Problems": "DNN-MFBO hard-wires the previous-fidelity output fm-1(x) as an unscaled input feature for fm(x).\nIf the correlation between fidelities is weak or changes locally, this unconditional use of fm-1(x) can introduce negative transfer, slowing hyper-parameter search and occasionally selecting misleading low-cost queries. A minimal mechanism is needed to adaptively reduce or amplify the influence of lower fidelities without redesigning the architecture or acquisition.",
+    "Methods": "Reliability-Aware DNN-MFBO (RA-DNN-MFBO)\nMinimal change: insert one learnable scalar gate αm∈[0,1] for every fidelity m>1.\nInput becomes   xm=[x ; αm·fm-1(x)]   instead of   [x ; fm-1(x)].\nPrior: αm∼Beta(1,1)  (uniform). In variational inference we keep a Gaussian variational posterior on logit(αm). An extra KL( q(αm) || p(αm) ) term is added to the ELBO (two additional lines of code).\nMotivation:\n• If fm-1 is unreliable, the posterior pushes αm→0, avoiding negative transfer.\n• When fidelities are strongly correlated the network learns αm→1, recovering the original model.\n• This single multiplicative gate is differentiable, cheap, and does not change acquisition-function derivations (moment matching still applies because scaling a Gaussian keeps it Gaussian).",
+    "Experimental Setup": "Data: 2-fidelity Branin and Levy benchmarks supplied with DNN-MFBO code (low-fidelity = cheap interpolation, high-fidelity = ground truth).\nBaselines: Original DNN-MFBO vs proposed RA-DNN-MFBO.\nInitial design: 10 random queries per fidelity.\nBudget: cost-weighted budget of 150 (low-fidelity cost 1, high-fidelity cost 10).\nMetrics: simple regret w.r.t. cost, plus nRMSE of surrogate on 100 test points to isolate modelling effect.\nRepeats: 10 random seeds.",
+    "Experimental Code": "import torch, torch.nn as nn\n\nclass FidelityBlock(nn.Module):\n    def __init__(self, in_dim, hid=50):\n        super().__init__()\n        self.net = nn.Sequential(nn.Linear(in_dim, hid), nn.ReLU(),\n                                 nn.Linear(hid, 1))\n        self.log_var = nn.Parameter(torch.zeros(1))  # homoscedastic noise\n    def forward(self, x):\n        mean = self.net(x)\n        var  = torch.exp(self.log_var)\n        return mean, var\n\nclass RADNNMFBO(nn.Module):\n    \"\"\"2-fidelity version for demo\"\"\"\n    def __init__(self, x_dim):\n        super().__init__()\n        self.f1 = FidelityBlock(x_dim)\n        self.alpha_raw = nn.Parameter(torch.zeros(1))  # sigmoid→α∈(0,1)\n        self.f2 = FidelityBlock(x_dim+1)\n    def forward_f1(self, x):\n        return self.f1(x)\n    def forward_f2(self, x):\n        with torch.no_grad():\n            mean1,_ = self.f1(x)\n        alpha = torch.sigmoid(self.alpha_raw)\n        inp = torch.cat([x, alpha*mean1], dim=-1)\n        return self.f2(inp)\n# --- tiny training loop for surrogate only ---\nopt = torch.optim.Adam(model.parameters(), 1e-3)\nfor itr in range(1000):\n    m1,v1 = model.forward_f1(x1);  m2,v2 = model.forward_f2(x2)\n    nll  = ((y1-m1)**2/v1 + torch.log(v1)).mean()\n    nll += ((y2-m2)**2/v2 + torch.log(v2)).mean()\n    # Beta(1,1) prior KL on α (Gaussian approx):\n    kl_alpha = -torch.distributions.Beta(1,1).log_prob(torch.sigmoid(model.alpha_raw))\n    loss = nll + 0.01*kl_alpha\n    opt.zero_grad(); loss.backward(); opt.step()",
+    "Expected Result": "Across both test functions RA-DNN-MFBO attains ~5-10% lower simple regret after the same cost budget and 15-20% lower nRMSE of the high-fidelity surrogate.\nGating coefficients converge towards α≈0.3 on Levy (weak correlation) and α≈0.9 on Branin (strong correlation), confirming adaptive behaviour. Runtime overhead is negligible (<2%).",
+    "Expected Conclusion": "Introducing a single learnable gate per fidelity is enough to prevent negative transfer when fidelities are weakly correlated, while leaving the original behaviour intact when correlations are strong. The change is architecturally trivial, requires only one extra parameter and a tiny KL term, yet yields consistent efficiency gains in hyper-parameter optimization. Such reliability-aware gating can be plugged into any stacked multi-fidelity neural surrogate with virtually no additional computational cost."
+}
+
+**Overall Experimental Strategy:** Goal:
+Establish that Reliability-Aware DNN-MFBO (RA-DNN-MFBO) is a generally better drop-in replacement for DNN-MFBO and other multi-fidelity BO surrogates in terms of (1) search performance, (2) modelling fidelity, (3) robustness to fidelity-correlation changes, (4) computational efficiency, and (5) interpretability of the learnt gate. Every individual experiment will be an instantiation of the procedure outlined below.
+
+1. Hypotheses to Validate
+1.1 Performance: RA-DNN-MFBO reaches lower cost-weighted simple regret than baselines under the same budget.
+1.2 Modelling Accuracy: The high-fidelity predictive nRMSE of RA-DNN-MFBO is lower, showing that the gate improves the surrogate itself.
+1.3 Robustness: When low/high fidelity correlation is weak, adversarially non-stationary, noisy, or task-dependent, RA-DNN-MFBO avoids negative transfer while baselines suffer.
+1.4 Efficiency: Added wall-clock time, GPU memory and number of parameters stay within +5% of original DNN-MFBO.
+1.5 Generalization: Gains persist across (a) synthetic benchmarks, (b) public black-box optimisation suites, and (c) at least one applied industrial task.
+1.6 Interpretability: Learnt αm values correlate with empirical inter-fidelity correlation coefficients; values shrink where correlation is low.
+
+2. Comparative Landscape
+2.1 Core Baselines
+  • Original DNN-MFBO (hard-wired fm-1).  
+  • State-of-the-art GP-based MFBO (e.g. MF-GP-EI) to show competitiveness beyond the DNN family.  
+2.2 Ablations (inside RA-DNN-MFBO)  
+  • Fixed αm=1 (identical to baseline)  
+  • Fixed αm=0 (no low-fidelity input)  
+  • Learnable αm but no KL-regularisation  
+  • Per-dimension gates vs single scalar gate (complexity control).
+2.3 Drop-in Test: Replace the surrogate in an existing BO pipeline (e.g. Bayesian optimisation library) with RA-DNN-MFBO and compare end-to-end quality.
+
+3. Experimental Angles & Metrics
+3.1 Quantitative
+  • Cost-weighted simple regret curve (primary).  
+  • Area-under-curve (AUC) of regret.  
+  • nRMSE / NLL on held-out high-fidelity points.  
+  • Wall-clock time, FLOPs and peak GPU memory.  
+  • Variance across ≥10 random seeds; report mean±95% CI.
+3.2 Qualitative / Diagnostic
+  • Evolution of αm during optimisation vs estimated fidelity-correlation.  
+  • Visualisations of posterior mean & variance slices to show reduced pathological extrapolation.  
+  • Acquisition heat-maps showing fewer misleading low-cost queries under weak correlation.
+3.3 Stress/Robustness
+  • Correlation sweep: For synthetic tasks continuously morph the low-fidelity function; measure performance break-points.  
+  • Noise injection: Add controlled Gaussian noise to fm-1(x).  
+  • Fidelity shift: Mid-run swap low-fidelity function; examine recovery speed.
+
+4. Unified Protocol per Experiment
+Step-A   Select task/problem (with known cost model).  
+Step-B   Specify budgets (cost or wall-clock) and identical initial design.  
+Step-C   Run RA-DNN-MFBO + all baselines/ablations for N_seeds seeds.  
+Step-D   Log metrics in real time; snapshot models every K BO steps for later analysis.  
+Step-E   Post-process: compute statistics, significance tests (paired t-test/Wilcoxon, Holm correction).  
+Step-F   Generate plots/tables; archive raw logs for reproducibility.
+
+5. Environment & Reproducibility Controls
+  • Hardware: Single NVIDIA A100-80GB, 2048 GB RAM node; enforce identical PyTorch/cuDNN versions.
+  • Deterministic seeds, torch.backends.cudnn.deterministic=True.  
+  • Automatic mixed precision OFF to keep numerical paths identical.  
+  • Use WandB/MLFlow for central logging; store config & git commit hash.  
+  • Provide container (Docker/Singularity) with all dependencies.
+
+6. Success Criteria
+  • At least 5% lower final simple regret AND ≥10% better AUC on ≥70% of benchmark tasks, statistically significant (p<0.05).  
+  • nRMSE improvement ≥10% on ≥70% tasks.  
+  • Runtime/memory overhead ≤5%.  
+  • Under correlation-sweep experiments, RA curve stays within 10% of optimal (oracle choosing α per task) while baseline degrades ≥20%.  
+  • αm values exhibit Pearson r>0.6 with empirical correlation estimates.
+
+7. Multi-Perspective Demonstration
+  • Algorithmic effectiveness: regret & accuracy.  
+  • Practical efficiency: overhead metrics.  
+  • Adaptivity & interpretability: gate behaviour.  
+  • Broad applicability: synthetic → standard BO benchmarks → real application.  
+  • Robustness: stress tests.
+
+This unified experimental strategy ensures every subsequent experiment consistently interrogates the same core claims, produces comparable evidence across domains, and collectively validates RA-DNN-MFBO as a minimal yet powerful upgrade over existing multi-fidelity surrogates.
+
+## Current Experiment to Evaluate
+
+**Experiment ID:** exp-main-perf
+
+**Experiment Description:** Objective / Hypothesis:
+Validate H1 (performance) and H2 (modelling accuracy) while checking H4 (efficiency).  The proposed Reliability-Aware gate should (1) lower cost-weighted simple regret and (2) reduce nRMSE of the high-fidelity surrogate with ≤5 % compute overhead.
+
+Benchmarks & Datasets:
+• Synthetic 2-fidelity Branin & Levy (exact definition in DNN-MFBO repo)  
+• Black-box-optimisation suite BBOB-MF (Surrogates 101, 12 functions × 2 fidelities)  
+• NAS-Bench-201-MF (epoch-truncated CIFAR-10 training costs: 4, 12, 200 epochs → collapse to two fidelities: 4 vs 200)  
+
+Pre-processing:
+• Normalise continuous input dimensions to [0,1]  
+• Min-max normalise low- & high-fidelity outputs separately  
+• Log-transform cost values, then scale to mean 0, std 1 before passing to acquisition  
+
+Data Splitting:
+BO automatically generates data; hold-out test sets of 100 Latin-Hypercube points per function for surrogate nRMSE/NLL.  
+
+Number of repetitions:
+10 seeds per benchmark. Report mean±95 % CI. Surrogate snapshot every 5 BO steps.  
+
+Evaluation Metrics:
+Primary: cost-weighted simple regret @ budget 150 (synthetic) / 3 × true-high-fidelity cost (BBOB-MF) / 8 GPU-hours (NAS).  Secondary: AUC of regret curve, nRMSE, NLL, wall-clock time, peak GPU memory, FLOPs (fvcore), #parameters.  
+
+Comparisons inside experiment:
+1. baseline-dnn-mfbo – original hard-wired model  
+2. ra-dnn-mfbo – proposed learnt gate + KL  
+3. ra-dnn-mfbo-noKL – drop KL term to test regularisation importance  
+4. ra-dnn-fixed-alpha1 – force α=1 (identical to baseline feature-wise)  
+5. ra-dnn-fixed-alpha0 – remove low-fidelity feature entirely  
+External reference (plotted but not in run_variations): MF-GP-EI from BoTorch, using default hyper-priors.  
+
+Hyper-parameter Grid (analysed post-hoc): learning-rate ∈{1e-4,3e-4,1e-3}; network width {32,64}; KL-weight β∈{0.005,0.01,0.05}. Swept on Branin-low-budget via 3-fold CV; best setting applied across tasks, sensitivity curves reported.  
+
+Robustness within experiment: not explicit – handled in exp-robustness.  
+
+Efficiency Measurement:
+• Use nvprof to capture FLOPs and kernel time per BO iteration (average of middle 50 % iterations)  
+• Measure peak GPU memory with torch.cuda.max_memory_allocated()  
+• Wall-clock recorded via Python’s time module, excluding plotting.  
+
+Selection Criterion for plots:
+• Best-validation log-likelihood model per seed (early stopping patience=30 iterations)  
+
+Example Code Snippet:
+```
+from mfbo import make_problem
+from radnn import RADNNMFBO, DNNSurrogate
+from utils import bo_loop
+
+task = make_problem("branin", n_fidelities=2)
+model = RADNNMFBO(task.x_dim) if variant=="ra-dnn-mfbo" else DNNSurrogate(...)
+results = bo_loop(model, task, budget=150, seed=seed)
+```
+Outcome Expected: ≥10 % lower final regret and AUC on ≥70 % of problems, ≥15 % lower nRMSE, ≤2 % run-time overhead.
+
+
+**Run Variations:** ['baseline-dnn-mfbo', 'ra-dnn-mfbo', 'ra-dnn-mfbo-noKL', 'ra-dnn-fixed-alpha1', 'ra-dnn-fixed-alpha0']
+
+**Generated Code:** {"evaluate_py": "", "full_experiment_yaml": "", "main_py": "", "model_py": "", "preprocess_py": "", "pyproject_toml": "", "smoke_test_yaml": "", "train_py": ""}
+
+**Experimental Results:**
+
+- Result: 
+- Error: 
+- Images: []
+
+
+**Primary Goal**: Evaluate whether this specific experiment is consistent, supports the main claims, and should be included in the research paper.
+Output:
+{
+    "consistency_feedback": "No scientific consistency can be judged because the experiment never actually ran.\n\n1. Experimental Strategy Issues: NONE.  The written design is appropriate – multiple benchmarks, fair baselines/ablations, 10-seed repeats, proper metrics, and efficiency measurements all directly test H1–H2 and partially H4.  If executed, the strategy would be adequate.\n\n2. Implementation Issues: CRITICAL.  All code artefact fields (evaluate_py, main_py, etc.) are empty, so the prescribed procedure was not implemented.  Consequently no data were generated, no metrics logged, and no plots produced.  The experiment therefore fails at the execution layer, independent of its conceptual soundness.\n   • Effect: prevents any assessment of the proposed RA-DNN-MFBO against baselines; hypotheses remain untested.\n\n3. Result Interpretation Issues: NOT APPLICABLE.  With no outputs, there is nothing to interpret.  Claims of ≥10 % lower regret, ≥15 % lower nRMSE, and ≤2 % overhead remain unsupported.\n\nPaper-Inclusion Decision: The experiment, in its current state, should NOT be included in the paper.  It must first be fully implemented, executed, and reported.  Only then can consistency with the proposed method and support for the main claims be evaluated.\n\nSuggestions within scope:\n• Provide functioning code that trains/optimises each variant and logs the specified metrics.\n• Ensure results tables/plots and statistical tests are produced so that performance and modelling-accuracy claims can be verified.",
+    "consistency_score": 2
+}
