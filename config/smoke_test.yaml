@@ -1,0 +1,68 @@
+# Lightweight smoke-test configuration – executes within seconds on CI runners
+run_variations:
+  - run_id: baseline_smoke
+    model_name: dnn_mfbo
+    dataset:
+      name: synthetic
+      function: branin
+      n_samples_low: 100
+      n_samples_high: 100
+    training:
+      epochs: 5
+      batch_size: 32
+      lr: 1e-3
+    seed: 42
+
+  - run_id: radnn_smoke
+    model_name: radnn
+    dataset:
+      name: synthetic
+      function: branin
+      n_samples_low: 100
+      n_samples_high: 100
+    training:
+      epochs: 5
+      batch_size: 32
+      lr: 1e-3
+    kl_coeff: 0.01
+    seed: 43
+
+  - run_id: radnn_noKL_smoke
+    model_name: radnn
+    dataset:
+      name: synthetic
+      function: branin
+      n_samples_low: 100
+      n_samples_high: 100
+    training:
+      epochs: 5
+      batch_size: 32
+      lr: 1e-3
+    kl_coeff: 0.0  # disables KL term
+    seed: 44
+
+  - run_id: radnn_fixed_alpha1_smoke
+    model_name: radnn_fixed_alpha1
+    dataset:
+      name: synthetic
+      function: branin
+      n_samples_low: 100
+      n_samples_high: 100
+    training:
+      epochs: 5
+      batch_size: 32
+      lr: 1e-3
+    seed: 45
+
+  - run_id: radnn_fixed_alpha0_smoke
+    model_name: radnn_fixed_alpha0
+    dataset:
+      name: synthetic
+      function: branin
+      n_samples_low: 100
+      n_samples_high: 100
+    training:
+      epochs: 5
+      batch_size: 32
+      lr: 1e-3
+    seed: 46
