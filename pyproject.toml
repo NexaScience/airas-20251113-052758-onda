@@ -1,1 +1,19 @@
-# Please list the required python packages.
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ra-dnn-mfbo-framework"
+version = "0.1.0"
+description = "Common core foundation for RA-DNN-MFBO experiments"
+requires-python = ">=3.9"
+dependencies = [
+  "torch>=2.0.0",
+  "numpy>=1.23",
+  "pyyaml>=6.0",
+  "matplotlib>=3.6",
+  "seaborn>=0.12",
+  "pandas>=1.5",
+  "scikit-learn>=1.2",
+  "tqdm>=4.65"
+]

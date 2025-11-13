@@ -1,0 +1,55 @@
+# Lightweight smoke-test configuration – executes quickly on CI
+run_variations:
+  - run_id: baseline_smoke
+    model_name: dnn_mfbo
+    dataset:
+      name: synthetic
+      function: branin
+      n_samples_low: 100
+      n_samples_high: 100
+    training:
+      epochs: 5
+      batch_size: 32
+      lr: 1e-3
+    seed: 42
+
+  - run_id: radnn_smoke
+    model_name: ra_dnn_mfbo
+    dataset:
+      name: synthetic
+      function: branin
+      n_samples_low: 100
+      n_samples_high: 100
+    training:
+      epochs: 5
+      batch_size: 32
+      lr: 1e-3
+    seed: 43
+    kl_coeff: 0.01
+
+  - run_id: mfgpei_smoke
+    model_name: mf_gp_ei
+    dataset:
+      name: synthetic
+      function: branin
+      n_samples_low: 100
+      n_samples_high: 100
+    training:
+      epochs: 5
+      batch_size: 32
+      lr: 5e-3
+    seed: 44
+
+  - run_id: radnn_per_dim_smoke
+    model_name: ra_dnn_per_dim_gates
+    dataset:
+      name: synthetic
+      function: branin
+      n_samples_low: 100
+      n_samples_high: 100
+    training:
+      epochs: 5
+      batch_size: 32
+      lr: 1e-3
+    seed: 45
+    kl_coeff: 0.01
