@@ -93,7 +93,13 @@
         "NAS-Bench-201-MF",
         "CIFAR-10",
         "CIFAR-100"
-      ]
+      ],
+      "external_resources": {
+        "hugging_face": {
+          "models": [],
+          "datasets": []
+        }
+      }
     }
   },
   "idea_info_history": [
