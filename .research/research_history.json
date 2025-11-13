@@ -87,6 +87,11 @@
             "result": "",
             "error": "",
             "image_file_name_list": []
+          },
+          "evaluation": {
+            "consistency_score": 2,
+            "consistency_feedback": "No scientific consistency can be judged because the experiment never actually ran.\n\n1. Experimental Strategy Issues: NONE.  The written design is appropriate – multiple benchmarks, fair baselines/ablations, 10-seed repeats, proper metrics, and efficiency measurements all directly test H1–H2 and partially H4.  If executed, the strategy would be adequate.\n\n2. Implementation Issues: CRITICAL.  All code artefact fields (evaluate_py, main_py, etc.) are empty, so the prescribed procedure was not implemented.  Consequently no data were generated, no metrics logged, and no plots produced.  The experiment therefore fails at the execution layer, independent of its conceptual soundness.\n   • Effect: prevents any assessment of the proposed RA-DNN-MFBO against baselines; hypotheses remain untested.\n\n3. Result Interpretation Issues: NOT APPLICABLE.  With no outputs, there is nothing to interpret.  Claims of ≥10 % lower regret, ≥15 % lower nRMSE, and ≤2 % overhead remain unsupported.\n\nPaper-Inclusion Decision: The experiment, in its current state, should NOT be included in the paper.  It must first be fully implemented, executed, and reported.  Only then can consistency with the proposed method and support for the main claims be evaluated.\n\nSuggestions within scope:\n• Provide functioning code that trains/optimises each variant and logs the specified metrics.\n• Ensure results tables/plots and statistical tests are produced so that performance and modelling-accuracy claims can be verified.",
+            "is_selected_for_paper": true
           }
         },
         {
@@ -117,6 +122,11 @@
             "result": "",
             "error": "",
             "image_file_name_list": []
+          },
+          "evaluation": {
+            "consistency_score": 2,
+            "consistency_feedback": "The experiment is well-designed on paper and directly targets hypotheses H3, H5 and H6, using appropriate stress protocols (correlation sweep, noise, fidelity-shift, domain transfer) and the correct baselines/ablations.  However, no code artefacts are provided (all code stubs are empty) and therefore no runs were executed—there are no numerical outputs, plots, or statistical tests.  As a consequence:\n\n• Implementation Issue – The described strategy is not implemented; the gap between plan and code is total, so nothing can be evaluated.\n• Result Interpretation Issue – With zero empirical data the paper cannot claim robustness, generalisation or interpretability improvements.\n\nBecause the experiment did not run, it cannot be used to support the main claims and should not be included in the paper in its current state. To be includable, the authors must supply functional code, execute the sweeps, and report the planned metrics with statistical analysis.\n",
+            "is_selected_for_paper": true
           }
         }
       ],
