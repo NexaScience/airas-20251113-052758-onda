@@ -1,0 +1,188 @@
+
+Input:
+
+You are a LaTeX expert.
+Your task is to convert each section of a research paper into plain LaTeX **content only**, without including any section titles or metadata.
+
+Below are the paper sections. For each one, convert only the **content** into LaTeX:
+
+---
+Section: title
+
+Reliability-Aware Gating for Deep Multi-Fidelity Bayesian Optimization
+
+---
+
+---
+Section: abstract
+
+Multi-fidelity Bayesian optimization accelerates black-box search by mixing cheap, biased evaluations with costly, accurate ones. Deep Neural Network MFBO (DNN-MFBO) models the high fidelity auto-regressively by concatenating the previous-fidelity prediction as an unscaled feature, an assumption that triggers negative transfer whenever cross-fidelity correlation is weak, non-stationary, or input-dependent \cite{li-2020-multi}. We introduce Reliability-Aware DNN-MFBO (RA-DNN-MFBO), a minimal yet principled extension that inserts one learnable scalar gate per fidelity. Each gate αm∈ multiplicatively scales the lower-fidelity signal, is endowed with a Beta(1,1) prior, and is inferred variationally via a Gaussian posterior on its logit, adding only one KL term to the ELBO. The change preserves the original architecture, training loop, and mutual-information acquisition because scaling a Gaussian keeps it Gaussian. On two-fidelity Branin and Levy benchmarks, a 12-function BBOB-MF suite, and NAS-Bench-201-MF, RA-DNN-MFBO lowers cost-weighted simple regret by 10–25 %, reduces surrogate nRMSE by 15–20 %, and incurs <2 % runtime and memory overhead. Learned gates align with empirical inter-fidelity correlations, confirming adaptive behaviour. Comparisons with the original DNN-MFBO and a GP-based MFBO baseline demonstrate superior efficiency, robustness, and interpretability \cite{li-2020-multi,li-2021-batch}.
+
+---
+
+---
+Section: introduction
+
+Bayesian optimization (BO) provides an efficient framework for optimizing expensive, derivative-free objectives. Many real-world problems admit cheaper, lower-fidelity approximations of the target function—coarser simulations, reduced data, fewer training epochs—whose evaluations cost less but are biased. Leveraging such hierarchies can slash the total budget, yet requires models and acquisition functions that correctly account for bias and varying noise.
+
+Deep Neural Network Multi-Fidelity Bayesian Optimization (DNN-MFBO) stacks Bayesian neural networks so that the m-th fidelity is conditioned on the prediction of fidelity m−1, and derives a tractable mutual-information acquisition via sequential Gauss–Hermite quadrature and moment matching \cite{li-2020-multi}. While powerful, the method hard-wires the previous-fidelity mean as an unscaled feature. This implicitly assumes that correlation is globally strong and stationary. In practice correlations may fade or even reverse across the input space, causing negative transfer: the surrogate over-trusts misleading low-fidelity outputs, its predictions deteriorate, and the acquisition wastes budget on suboptimal, low-cost queries.
+
+We ask: can we preserve the efficiency and tractability of DNN-MFBO while letting the model learn how much to trust each lower fidelity? We answer in the affirmative with Reliability-Aware DNN-MFBO (RA-DNN-MFBO), a surgically small modification that introduces a single learnable gate per fidelity. The gate scales the lower-fidelity prediction before concatenation, has a uniform Beta prior, and is inferred jointly with network weights through variational Bayes. If correlation is weak, the posterior drives the gate toward zero, muting harmful influence; if correlation is strong, the gate approaches one, recovering the original architecture. Because multiplication by a scalar preserves Gaussianity, the acquisition derivations and computational profile remain untouched.
+
+The challenge lies in balancing adaptability, tractability, and cost. Many alternative fixes—input-dependent kernels, attention mechanisms, or fidelity-specific hyper-networks—break the mathematical structure that renders DNN-MFBO scalable, or introduce prohibitive overhead. Our approach meets four design goals: (1) adaptability to varying reliability; (2) full compatibility with existing acquisition machinery; (3) negligible parameter and runtime cost; (4) interpretable diagnostics via the learnt gate values.
+
+We validate RA-DNN-MFBO on synthetic two-fidelity Branin and Levy functions, the 12-function BBOB-MF suite, and the neural architecture search benchmark NAS-Bench-201-MF. Across ten seeds we report cost-weighted simple regret, surrogate accuracy (nRMSE), runtime, memory, robustness to correlation shifts and noise, and correlation between learnt gates and empirical reliability. Results consistently favour RA-DNN-MFBO over the original DNN-MFBO and a strong GP-based MFBO baseline. We further position our contribution relative to batch deep MFBO with auto-regressive networks (DARN) \cite{li-2021-batch}, emphasising that our gating is orthogonal and can be combined with such acquisition extensions.
+
+Contributions:
+• A reliability-aware scalar gate for deep multi-fidelity surrogates requiring only one extra parameter and a small KL term.
+• Proof of compatibility with DNN-MFBO’s moment-matching acquisition, preserving tractability.
+• Extensive empirical study showing 10–25 % lower simple regret, ≈18 % better nRMSE, and <2 % overhead across diverse tasks.
+• Robustness analyses demonstrating immunity to negative transfer and interpretable gate dynamics that track fidelity correlation.
+
+Looking ahead, richer gates—per-dimension or input-dependent—may capture local reliability at modest additional cost, and joint adaptation of acquisition and gating could yield further gains. Nonetheless, this work shows that carefully chosen minimal changes can deliver outsized benefits for multi-fidelity BO.
+
+---
+
+---
+Section: related_work
+
+Gaussian-process (GP)-based multi-fidelity BO dominates early literature, modelling correlations via co-kriging or hierarchical kernels. These models provide principled uncertainty but scale poorly with input dimension and struggle when cross-fidelity mappings are highly nonlinear. Neural surrogates address these issues. DNN-MFBO introduced an auto-regressive Bayesian neural network and a tractable mutual-information acquisition, outperforming GP counterparts on several benchmarks \cite{li-2020-multi}. Our work retains their surrogate but removes the rigid assumption of perfect trust by inserting a learnable gate.
+
+Batch deep MFBO with Deep Auto-Regressive Networks (DARN) extends DNN-MFBO to batch querying by designing a Max-value Entropy Search acquisition that penalises redundant queries \cite{li-2021-batch}. DARN focuses on acquisition-side improvements; our contribution focuses on surrogate reliability. The two are complementary: gating can be applied within DARN unchanged.
+
+Alternative reliability schemes exist. Some GP methods learn input-dependent noise or apply warped kernels, increasing inference cost. Neural approaches have explored attention-based fusion of fidelities, but these layers complicate moment matching, breaking analytical acquisition computation. Our gate keeps the mathematical form unchanged and adds virtually no computation.
+
+Finally, modern ML systems like TensorFlow enable large-scale experiments \cite{abadi-2016-system}, yet system advances alone cannot prevent negative transfer. RA-DNN-MFBO tackles the modelling root cause, providing a lightweight, interpretable fix without requiring system-level tweaks.
+
+---
+
+---
+Section: background
+
+Problem setting. Let X⊂ℝd be the design space and {f1,…,fM} a hierarchy of fidelities with evaluation costs 1≪c2<…<cM. Querying (x,m) yields ym(x)=fm(x)+ϵm, ϵm∼𝒩(0,σm2). The objective is to minimise fM within a total cost budget. DNN-MFBO represents each fidelity m as a Bayesian neural network receiving the design x concatenated with the predictive mean of fidelity m−1, thereby forming an auto-regressive chain. Predictive distributions are Gaussian, enabling moment matching. The mutual-information acquisition selects the next query by maximising expected information gain per unit cost and is evaluated via sequential Gauss–Hermite quadrature \cite{li-2020-multi}.
+
+Negative transfer. When Cov(fm−1,fm) is small or sign-flips locally, the unscaled inclusion of f̂m−1 biases the surrogate toward false trends, inflating predictive error and misguiding the acquisition. The phenomenon is exacerbated when low-fidelity queries are far cheaper, tempting the acquisition to oversample them.
+
+Gated coupling. We introduce αm∈ such that the m-th network input becomes . The gate moderates information flow. A uniform Beta(1,1) prior encodes initial ignorance. Re-parametrising with zm=logit(αm) and placing a Gaussian variational posterior q(zm) allows closed-form KL to the Beta prior, adding one term to the ELBO. Because scaling a Gaussian by a constant preserves its family, all predictive moments required for acquisition remain analytically available. Thus the entire DNN-MFBO pipeline remains intact while gaining adaptability.
+
+---
+
+---
+Section: method
+
+For fidelities m=2,…,M, let fmθm denote the Bayesian neural network with weights θm. Given design x, the predictive mean of fidelity m−1 is µm−1(x). RA-DNN-MFBO forms the input vector xm= and outputs a Gaussian N(µm(x),σm2(x)). The gate αm=σ(sigmoid)(wm) with unconstrained parameter wm. Priors: p(θm) standard Gaussian as in DNN-MFBO; p(αm)=Beta(1,1). Variational posteriors: q(θm) factorised Gaussians; q(wm)=𝒩(µw,σw2). The ELBO is
+ELBO=∑m E_q − ∑m KL(q(θm)||p(θm)) − ∑m>1 KL(q(αm)||p(αm)).
+The only change w.r.t. DNN-MFBO is the last term; implementation requires two code lines. Gradient-based optimisation proceeds with the reparameterisation trick.
+
+Acquisition computation. The mutual-information criterion relies on predictive means and variances of each fidelity. Scaling µm−1 by αm simply multiplies its mean and variance by αm and αm2, respectively; Gauss–Hermite quadrature and moment matching stay valid. Therefore, acquisition values, their gradients, and fidelity-selection mechanisms are reused verbatim.
+
+Complexity. The model adds one scalar parameter and two scalar moments per fidelity. Computational overhead is O(1) per forward pass and imperceptible in practice (<2 % wall-clock). The gate can just as easily be inserted into batch variants such as DARN without any further derivation.
+
+---
+
+---
+Section: experimental_setup
+
+Benchmarks. (1) Two-fidelity Branin and Levy functions supplied with DNN-MFBO. Low fidelity is a cheap interpolation; high fidelity is exact. (2) BBOB-MF suite: 12 analytic functions with designed fidelity gaps. (3) NAS-Bench-201-MF, where low fidelity is a network trained for 12 epochs and high fidelity for 200 epochs.
+
+Protocol. Each method starts from the same 10 random queries per fidelity. Budgets: 150 cost units on synthetic tasks (costs 1 and 10), equivalent cost ratios on BBOB-MF, and 8 GPU-hours on NAS. Ten random seeds for performance studies, five for robustness sweeps.
+
+Metrics. Primary: cost-weighted simple regret curve and its area under curve (AUC). Modelling: nRMSE of the high-fidelity surrogate on 100 held-out points (synthetic) or the validation set (NAS). Efficiency: wall-clock per BO step, peak GPU memory. Robustness: slope of regret versus correlation or noise, steps to recovery after fidelity shift. Interpretability: Pearson correlation between learnt α and empirical inter-fidelity correlation.
+
+Baselines. Original DNN-MFBO \cite{li-2020-multi}; multi-fidelity GP with expected improvement; ablations fixed α=1, fixed α=0, no-KL, and per-dimension gates. All share architecture and optimiser settings; only the presence or behaviour of α differs.
+
+Implementation. PyTorch; deterministic cuDNN; single A100-80 GB GPU; mixed precision off. The training loop mirrors that in the DNN-MFBO repository with two added lines for the KL on α. Logs are captured with Weights-and-Biases. Statistical significance uses paired t-tests with Holm correction.
+
+---
+
+---
+Section: results
+
+Main performance. On Branin, RA-DNN-MFBO attains final simple regret 0.021 ± 0.003 versus 0.028 ± 0.004 for DNN-MFBO, a 24.8 % improvement (p=4·10⁻³). Surrogate nRMSE drops from 0.082 ± 0.006 to 0.067 ± 0.005. The gate converges to α=0.91 ± 0.02, reflecting strong correlation. On Levy, regret falls by 15.7 % and nRMSE by 18.8 %, with α=0.32 ± 0.04, demonstrating attenuation under weak correlation.
+
+Across BBOB-MF, median regret improves by 11.4 %; 10 of 12 functions show statistically significant gains. Mean nRMSE improves by 17.6 %. In NAS-Bench-201-MF, validation simple regret halves (0.007 vs 0.013) and the 92 % accuracy threshold is reached in 2.8 GPU-h versus 5.2 GPU-h.
+
+Ablations. Fixed α=1 reproduces the baseline. Fixed α=0 harms performance by 32 %, confirming that low-fidelity data are useful when properly gated. Removing the KL causes occasional gate saturation and intermediate performance. Per-dimension gates cut nRMSE by a further 2 % but cost 6 % more parameters and 4.8 % runtime.
+
+Efficiency. The additional gate parameter increases model size by 0.03 %. Wall-clock per BO step rises by 1.7 ± 0.4 %, GPU memory by 1.2 %, both well under the 5 % target.
+
+Robustness. When low-fidelity correlation is swept from strong to adversarial, the regret slope is 0.024 (RA) versus 0.058 (baseline); at zero correlation, RA’s regret is 0.047 ± 0.006 while the baseline’s is 0.081 ± 0.008 (42 % worse). Gate values correlate with empirical correlation (r=0.83, p<10⁻⁵). Under injected noise σ=0.5, RA outperforms by 38 %. After a mid-run fidelity swap, RA recovers in 7 ± 2 steps whereas the baseline needs 22 ± 4.
+
+Comparison to GP-based MFBO. RA beats the GP baseline by 9 % (Branin), 13 % (Levy) and 7 % median on BBOB-MF, while being 3–4× faster and using less memory on NAS.
+
+Limitations. Scalar gating cannot model input-dependent reliability; richer gates may improve further. Acquisition design remains as in DNN-MFBO—jointly learning acquisition parameters and gates is future work.
+
+---
+
+---
+Section: conclusion
+
+Reliability-Aware DNN-MFBO augments deep multi-fidelity surrogates with a single learnable gate per fidelity, governed by a simple Beta prior and inferred through variational Bayes. The gate adaptively scales lower-fidelity information, preventing negative transfer when correlations are weak and seamlessly recovering the original model when correlations are strong. Crucially, the modification leaves DNN-MFBO’s analytical acquisition untouched and adds negligible computational cost.
+
+Experiments across synthetic functions, black-box optimisation suites, and neural architecture search show 10–25 % lower cost-weighted simple regret, ≈18 % better surrogate accuracy, and <2 % overhead. Robustness tests confirm improved resilience to correlation shifts, noise, and fidelity swaps, with gate values providing an interpretable reliability signal. Comparisons against GP-based and ablated models corroborate the benefits.
+
+The study demonstrates that minimal, principled adjustments to surrogate coupling can yield significant gains. Future directions include input-dependent or per-dimension gating, joint optimisation of acquisition hyper-parameters with gate learning, and application to large-scale scientific design problems. The proposed gate is a drop-in upgrade for any stacked neural surrogate, offering an immediate path to more reliable and efficient multi-fidelity Bayesian optimisation.
+
+---
+
+
+## LaTeX Formatting Rules:
+- Use \subsection{...} for any subsections within this section.
+    - Subsection titles should be distinct from the section name;
+    - Do not use '\subsection{  }', or other slight variations. Use more descriptive and unique titles.
+    - Avoid excessive subdivision. If a subsection is brief or overlaps significantly with another, consider merging them for clarity and flow.
+
+- For listing contributions, use the LaTeX \begin{itemize}...\end{itemize} format.
+    - Each item should start with a short title in \textbf{...} format.
+    - Avoid using -, *, or other Markdown bullet styles.
+
+- When including tables, use the `tabularx` environment with `\textwidth` as the target width.
+    - At least one column must use the `X` type to enable automatic width adjustment and line breaking.
+    - Include `\hline` at the top, after the header, and at the bottom. Avoid vertical lines unless necessary.
+    - To left-align content in `X` columns, define `
+ewcolumntype{Y}{>{
+aggedrightrraybackslash}X}` using the `array` package.
+
+- When writing pseudocode, use the `algorithm` and `algorithmicx` LaTeX environments.
+    - Only include pseudocode in the `Method` section. Pseudocode is not allowed in any other sections.
+    - Prefer the `\begin{algorithmic}` environment using **lowercase commands** such as `\State`, `\For`, and `\If`, to ensure compatibility and clean formatting.
+    - Pseudocode must represent actual algorithms or procedures with clear logic. Do not use pseudocode to simply rephrase narrative descriptions or repeat what has already been explained in text.
+        - Good Example:
+        ```latex
+        \State Compute transformed tokens: \(	ilde{T} \leftarrow W\,T\)
+        \State Update: \(T_{new} \leftarrow 	ilde{T} + \mu\,T_{prev}\)
+        ```
+- Figures and images are ONLY allowed in the "Results" section.
+    - Use LaTeX float option `[H]` to force placement.
+
+- All figures must be inserted using the following LaTeX format, using a `width` that reflects the filename:
+    ```latex
+    \includegraphics[width=\linewidth]{ images/filename.pdf }
+    ```
+    The `<appropriate-width>` must be selected based on the filename suffix:
+    - If the filename ends with _pair1.pdf or _pair2.pdf, use 0.48\linewidth as the width of each subfigure environment and place the figures side by side using `subcaption` package.
+    - Otherwise (default), use 0.7\linewidth
+
+- **Escaping special characters**:
+    - LaTeX special characters (`#`, `$`, `%`, `&`, `~`, `_`, `^`, `{`, `}`, `\`) must be escaped with a leading backslash when they appear in plain text (e.g., `data\_set`, `C\&C`).
+    - Underscores **must always be escaped** (`\_`) outside math mode, even in filenames (e.g., memory\_profiler), code-style words, itemize lists, or citation contexts.
+
+- Always use ASCII hyphens (`-`) instead of en-dashes (`–`) or em-dashes (`—`) to avoid spacing issues in hyphenated terms.
+- Do not include any of these higher-level commands such as \documentclass{...}, \begin{document}, and \end{document}.
+    - Additionally, avoid including section-specific commands such as \begin{abstract}, \section{  }, or any other similar environment definitions.
+- Do not modify citation placeholders:
+    - Citation placeholders appear in the format [citation_key], where citation_key contains underscores, numbers, and text (e.g., [vaswani_2017_attention], [smith_2023_deep]).
+    - You must preserve these placeholders EXACTLY as they appear in the input text.
+- If no LaTeX conversion is needed, output the content as-is without status messages like [Unchanged].
+Output:
+{
+    "title": "Reliability-Aware Gating for Deep Multi-Fidelity Bayesian Optimization",
+    "abstract": "Multi-fidelity Bayesian optimization accelerates black-box search by mixing cheap, biased evaluations with costly, accurate ones. Deep Neural Network MFBO (DNN-MFBO) models the high fidelity auto-regressively by concatenating the previous-fidelity prediction as an unscaled feature, an assumption that triggers negative transfer whenever cross-fidelity correlation is weak, non-stationary, or input-dependent \\cite{li-2020-multi}. We introduce Reliability-Aware DNN-MFBO (RA-DNN-MFBO), a minimal yet principled extension that inserts one learnable scalar gate per fidelity. Each gate \\(\\alpha_m\\in(0,1)\\) multiplicatively scales the lower-fidelity signal, is endowed with a \\(\\mathrm{Beta}(1,1)\\) prior, and is inferred variationally via a Gaussian posterior on its logit, adding only one KL term to the ELBO. The change preserves the original architecture, training loop, and mutual-information acquisition because scaling a Gaussian by a constant preserves Gaussianity. On two-fidelity Branin and Levy benchmarks, a 12-function BBOB-MF suite, and NAS-Bench-201-MF, RA-DNN-MFBO lowers cost-weighted simple regret by 10-25\\%, reduces surrogate nRMSE by 15-20\\%, and incurs $<2\\%$ runtime and memory overhead. Learned gates align with empirical inter-fidelity correlations, confirming adaptive behaviour. Comparisons with the original DNN-MFBO and a GP-based MFBO baseline demonstrate superior efficiency, robustness, and interpretability \\cite{li-2020-multi,li-2021-batch}.",
+    "introduction": "Bayesian optimization (BO) provides an efficient framework for optimizing expensive, derivative-free objectives. Many real-world problems admit cheaper, lower-fidelity approximations of the target function - coarser simulations, reduced data, fewer training epochs - whose evaluations cost less but are biased. Leveraging such hierarchies can slash the total budget, yet requires models and acquisition functions that correctly account for bias and varying noise.\n\nDNN-MFBO stacks Bayesian neural networks so that the \\(m\\)-th fidelity is conditioned on the prediction of fidelity \\(m-1\\), and derives a tractable mutual-information acquisition via sequential Gauss-Hermite quadrature and moment matching \\cite{li-2020-multi}. While powerful, the method hard-wires the previous-fidelity mean as an unscaled feature. This implicitly assumes that correlation is globally strong and stationary. In practice correlations may fade or even reverse across the input space, causing negative transfer: the surrogate over-trusts misleading low-fidelity outputs, its predictions deteriorate, and the acquisition wastes budget on suboptimal, low-cost queries.\n\n\\subsection{Motivation and challenges}\nWe ask whether we can preserve the efficiency and tractability of DNN-MFBO while letting the model learn how much to trust each lower fidelity. Negative transfer arises when the cross-fidelity mapping is weak, sign-flipping, or non-stationary; any rigid coupling invites bias. Many potential fixes - input-dependent kernels, attention, or fidelity-specific hyper-networks - disrupt the analytical structure that renders DNN-MFBO scalable, or introduce prohibitive overhead.\n\n\\subsection{Reliability-aware gating overview}\nWe propose Reliability-Aware DNN-MFBO (RA-DNN-MFBO), a surgically small modification that introduces a single learnable gate per fidelity. The gate \\(\\alpha_m\\) scales the lower-fidelity prediction before concatenation, has a uniform \\(\\mathrm{Beta}(1,1)\\) prior, and is inferred jointly with network weights through variational Bayes. If correlation is weak, the posterior drives the gate toward zero, muting harmful influence; if correlation is strong, the gate approaches one, recovering the original architecture. Because multiplication by a scalar preserves Gaussianity, the acquisition derivations and computational profile remain untouched.\n\n\\subsection{Empirical overview and contributions}\nWe validate RA-DNN-MFBO on synthetic two-fidelity Branin and Levy functions, the 12-function BBOB-MF suite, and the neural architecture search benchmark NAS-Bench-201-MF. Across ten seeds we report cost-weighted simple regret, surrogate accuracy (nRMSE), runtime, memory, robustness to correlation shifts and noise, and correlation between learnt gates and empirical reliability. Results consistently favour RA-DNN-MFBO over the original DNN-MFBO and a strong GP-based MFBO baseline, and are complementary to batch deep MFBO with auto-regressive networks (DARN) \\cite{li-2021-batch}.\n\n\\begin{itemize}\n  \\item \\textbf{Reliability-aware gate:} A scalar gate for deep multi-fidelity surrogates requiring only one extra parameter and a small KL term.\n  \\item \\textbf{Acquisition compatibility:} Proof of compatibility with DNN-MFBO's moment-matching acquisition, preserving tractability.\n  \\item \\textbf{Empirical gains:} Extensive study showing 10-25\\% lower simple regret, $\\approx 18\\%$ better nRMSE, and $<2\\%$ overhead across diverse tasks.\n  \\item \\textbf{Robustness and interpretability:} Immunity to negative transfer with gate dynamics that track fidelity correlation.\n\\end{itemize}\n\nLooking ahead, richer gates - per-dimension or input-dependent - may capture local reliability at modest additional cost, and joint adaptation of acquisition and gating could yield further gains. Nonetheless, this work shows that carefully chosen minimal changes can deliver outsized benefits for multi-fidelity BO.",
+    "related_work": "GP-based multi-fidelity BO dominates early literature, modelling correlations via co-kriging or hierarchical kernels. These models provide principled uncertainty but scale poorly with input dimension and struggle when cross-fidelity mappings are highly nonlinear. Neural surrogates address these issues. DNN-MFBO introduced an auto-regressive Bayesian neural network and a tractable mutual-information acquisition, outperforming GP counterparts on several benchmarks \\cite{li-2020-multi}. Our work retains their surrogate but removes the rigid assumption of perfect trust by inserting a learnable gate.\n\nBatch deep MFBO with Deep Auto-Regressive Networks (DARN) extends DNN-MFBO to batch querying by designing a Max-value Entropy Search acquisition that penalises redundant queries \\cite{li-2021-batch}. DARN focuses on acquisition-side improvements; our contribution focuses on surrogate reliability. The two are complementary: gating can be applied within DARN unchanged.\n\nAlternative reliability schemes exist. Some GP methods learn input-dependent noise or apply warped kernels, increasing inference cost. Neural approaches have explored attention-based fusion of fidelities, but these layers complicate moment matching, breaking analytical acquisition computation. Our gate keeps the mathematical form unchanged and adds virtually no computation.\n\nFinally, modern ML systems like TensorFlow enable large-scale experiments \\cite{abadi-2016-system}, yet system advances alone cannot prevent negative transfer. RA-DNN-MFBO tackles the modelling root cause, providing a lightweight, interpretable fix without requiring system-level tweaks.",
+    "background": "\\subsection{Problem setting and surrogate structure}\nLet \\(\\mathcal{X}\\subset\\mathbb{R}^d\\) be the design space and \\(\\{f_1,\\ldots,f_M\\}\\) a hierarchy of fidelities with evaluation costs \\(1\\ll c_2<\\cdots<c_M\\). Querying \\((x,m)\\) yields \\(y_m(x)=f_m(x)+\\epsilon_m\\), with \\(\\epsilon_m\\sim\\mathcal{N}(0,\\sigma_m^2)\\). The objective is to minimise \\(f_M\\) within a total cost budget. DNN-MFBO represents each fidelity \\(m\\) as a Bayesian neural network receiving the design \\(x\\) concatenated with the predictive mean of fidelity \\(m-1\\), thereby forming an auto-regressive chain. Predictive distributions are Gaussian, enabling moment matching. The mutual-information acquisition selects the next query by maximising expected information gain per unit cost and is evaluated via sequential Gauss-Hermite quadrature \\cite{li-2020-multi}.\n\n\\subsection{Negative transfer}\nWhen \\(\\operatorname{Cov}(f_{m-1},f_m)\\) is small or sign-flips locally, the unscaled inclusion of \\(\\hat f_{m-1}\\) biases the surrogate toward false trends, inflating predictive error and misguiding the acquisition. The phenomenon is exacerbated when low-fidelity queries are far cheaper, tempting the acquisition to oversample them.\n\n\\subsection{Gated coupling}\nWe introduce a reliability gate \\(\\alpha_m\\in(0,1)\\) such that the \\(m\\)-th network input becomes the concatenation \\([x;\\,\\alpha_m\\,\\hat f_{m-1}(x)]\\). The gate moderates information flow. A uniform \\(\\mathrm{Beta}(1,1)\\) prior encodes initial ignorance. Re-parameterising with \\(z_m=\\mathrm{logit}(\\alpha_m)\\) and placing a Gaussian variational posterior \\(q(z_m)\\) allows adding a single KL term to the ELBO. Because scaling a Gaussian by a constant preserves its family, all predictive moments required for acquisition remain analytically available. Thus the entire DNN-MFBO pipeline remains intact while gaining adaptability.",
+    "method": "For fidelities \\(m=2,\\ldots,M\\), let \\(f_m^{\\theta_m}\\) denote the Bayesian neural network with weights \\(\\theta_m\\). Given design \\(x\\), the predictive mean of fidelity \\(m-1\\) is \\(\\mu_{m-1}(x)\\). RA-DNN-MFBO forms the input vector \\(x_m=[x;\\,\\alpha_m\\,\\mu_{m-1}(x)]\\) and outputs a Gaussian \\(\\mathcal{N}(\\mu_m(x),\\sigma_m^2(x))\\). The gate is parameterised as \\(\\alpha_m=\\sigma(w_m)\\), where \\(\\sigma(\\cdot)\\) is the logistic sigmoid and \\(w_m\\in\\mathbb{R}\\) is unconstrained. Priors: \\(p(\\theta_m)\\) is standard Gaussian as in DNN-MFBO; \\(p(\\alpha_m)=\\mathrm{Beta}(1,1)\\). Variational posteriors: \\(q(\\theta_m)\\) are factorised Gaussians; \\(q(w_m)=\\mathcal{N}(\\mu_w,\\sigma_w^2)\\).\n\n\\subsection{Variational objective}\nLet \\(\\mathcal{D}=\\{\\mathcal{D}_m\\}_{m=1}^M\\) denote the data across fidelities. The ELBO reads\n\\[\n\\mathcal{L}=\\sum_{m=1}^M \\mathbb{E}_{q}\\big[\\log p(\\mathcal{D}_m\\mid \\theta_m,\\alpha_m)\\big] - \\sum_{m=1}^M \\mathrm{KL}\\big(q(\\theta_m)\\,\\Vert\\,p(\\theta_m)\\big) - \\sum_{m=2}^M \\mathrm{KL}\\big(q(\\alpha_m)\\,\\Vert\\,p(\\alpha_m)\\big).\n\\]\nThe only change relative to DNN-MFBO is the last term; implementation requires a small addition to compute the KL for each gate. Optimisation proceeds with the reparameterisation trick for both network weights and gate parameters.\n\n\\subsection{Acquisition compatibility}\nThe mutual-information criterion in DNN-MFBO relies on predictive means and variances of each fidelity. Scaling \\(\\mu_{m-1}(x)\\) by \\(\\alpha_m\\) simply multiplies its mean and variance by \\(\\alpha_m\\) and \\(\\alpha_m^2\\), respectively. Consequently, sequential Gauss-Hermite quadrature and moment matching remain valid without modification, and acquisition values, their gradients, and fidelity-selection mechanisms are reused verbatim.\n\n\\subsection{Computational complexity}\nThe model adds one scalar parameter and two scalar moments per fidelity. Computational overhead is \\(\\mathcal{O}(1)\\) per forward pass and is imperceptible in practice (wall-clock overhead $<2\\%$).\n\n\\begin{algorithm}[H]\n\\caption{One BO iteration with RA-DNN-MFBO}\n\\begin{algorithmic}[1]\n\\State Given dataset \\(\\mathcal{D}=\\{(x_i,m_i,y_i)\\}\\) and current variational params \\(\\{q(\\theta_m),q(w_m)\\}\\)\n\\For{$t=1$ to $T_{\\text{train}}$}\n  \\State Sample \\(\\theta_m\\sim q(\\theta_m)\\), \\(w_m\\sim q(w_m)\\), set \\(\\alpha_m\\leftarrow \\sigma(w_m)\\) for all \\(m\\)\n  \\State Compute minibatch ELBO gradient of \\(\\mathcal{L}\\) and update variational parameters\n\\EndFor\n\\State For candidate designs and fidelities, compute acquisition via moment matching using gated inputs \\([x;\\,\\alpha_m\\,\\mu_{m-1}(x)]\\)\n\\State Select next query \\((x^\\star,m^\\star)\\leftarrow \\arg\\max \\text{acq}(x,m)/c_m\\); observe \\(y_{m^\\star}(x^\\star)\\)\n\\State Augment dataset: \\(\\mathcal{D}\\leftarrow \\mathcal{D}\\cup\\{(x^\\star,m^\\star,y_{m^\\star}(x^\\star))\\}\\)\n\\end{algorithmic}\n\\end{algorithm}",
+    "experimental_setup": "\\subsection{Benchmarks}\n(1) Two-fidelity Branin and Levy functions supplied with DNN-MFBO. Low fidelity is a cheap interpolation; high fidelity is exact. (2) BBOB-MF suite: 12 analytic functions with designed fidelity gaps. (3) NAS-Bench-201-MF, where low fidelity is a network trained for 12 epochs and high fidelity for 200 epochs.\n\n\\subsection{Protocol and budgets}\nEach method starts from the same 10 random queries per fidelity. Budgets: 150 cost units on synthetic tasks (costs 1 and 10), equivalent cost ratios on BBOB-MF, and 8 GPU-hours on NAS. Ten random seeds for performance studies, five for robustness sweeps.\n\n\\subsection{Metrics}\nPrimary: cost-weighted simple regret curve and its area under curve (AUC). Modelling: nRMSE of the high-fidelity surrogate on 100 held-out points (synthetic) or the validation set (NAS). Efficiency: wall-clock per BO step, peak GPU memory. Robustness: slope of regret versus correlation or noise, steps to recovery after fidelity shift. Interpretability: Pearson correlation between learnt \\(\\alpha\\) and empirical inter-fidelity correlation.\n\n\\subsection{Baselines and ablations}\nOriginal DNN-MFBO \\cite{li-2020-multi}; multi-fidelity GP with expected improvement; ablations fixed \\(\\alpha=1\\), fixed \\(\\alpha=0\\), no-KL, and per-dimension gates. All share architecture and optimiser settings; only the presence or behaviour of \\(\\alpha\\) differs.\n\n\\subsection{Implementation details}\nPyTorch; deterministic cuDNN; single A100-80 GB GPU; mixed precision off. The training loop mirrors that in the DNN-MFBO repository with two added lines for the KL on \\(\\alpha\\). Logs are captured with Weights-and-Biases. Statistical significance uses paired t-tests with Holm correction.",
+    "results": "\\subsection{Main performance}\nOn Branin, RA-DNN-MFBO attains final simple regret $0.021\\pm0.003$ versus $0.028\\pm0.004$ for DNN-MFBO, a 24.8\\% improvement ($p=4\\cdot 10^{-3}$). Surrogate nRMSE drops from $0.082\\pm0.006$ to $0.067\\pm0.005$. The gate converges to \\(\\alpha=0.91\\pm0.02\\), reflecting strong correlation. On Levy, regret falls by 15.7\\% and nRMSE by 18.8\\%, with \\(\\alpha=0.32\\pm0.04\\), demonstrating attenuation under weak correlation.\n\nAcross BBOB-MF, median regret improves by 11.4\\%; 10 of 12 functions show statistically significant gains. Mean nRMSE improves by 17.6\\%. In NAS-Bench-201-MF, validation simple regret halves (0.007 vs 0.013) and the 92\\% accuracy threshold is reached in 2.8 GPU-h versus 5.2 GPU-h.\n\n\\subsection{Ablations}\nFixed \\(\\alpha=1\\) reproduces the baseline. Fixed \\(\\alpha=0\\) harms performance by 32\\%, confirming that low-fidelity data are useful when properly gated. Removing the KL causes occasional gate saturation and intermediate performance. Per-dimension gates cut nRMSE by a further 2\\% but cost 6\\% more parameters and 4.8\\% runtime.\n\n\\subsection{Efficiency}\nThe additional gate parameter increases model size by 0.03\\%. Wall-clock per BO step rises by $1.7\\pm0.4\\%$, GPU memory by 1.2\\%, both well under the 5\\% target.\n\n\\subsection{Robustness}\nWhen low-fidelity correlation is swept from strong to adversarial, the regret slope is 0.024 (RA) versus 0.058 (baseline); at zero correlation, RA's regret is $0.047\\pm0.006$ while the baseline's is $0.081\\pm0.008$ (42\\% worse). Gate values correlate with empirical correlation ($r=0.83$, $p<10^{-5}$). Under injected noise $\\sigma=0.5$, RA outperforms by 38\\%. After a mid-run fidelity swap, RA recovers in $7\\pm2$ steps whereas the baseline needs $22\\pm4$.\n\n\\subsection{Comparison to GP-based MFBO}\nRA beats the GP baseline by 9\\% (Branin), 13\\% (Levy) and 7\\% median on BBOB-MF, while being 3-4$\\times$ faster and using less memory on NAS.\n\n\\subsection{Limitations}\nScalar gating cannot model input-dependent reliability; richer gates may improve further. Acquisition design remains as in DNN-MFBO - jointly learning acquisition parameters and gates is future work.",
+    "conclusion": "Reliability-Aware DNN-MFBO augments deep multi-fidelity surrogates with a single learnable gate per fidelity, governed by a simple Beta prior and inferred through variational Bayes. The gate adaptively scales lower-fidelity information, preventing negative transfer when correlations are weak and seamlessly recovering the original model when correlations are strong. Crucially, the modification leaves DNN-MFBO's analytical acquisition untouched and adds negligible computational cost.\n\nExperiments across synthetic functions, black-box optimisation suites, and neural architecture search show 10-25\\% lower cost-weighted simple regret, $\\approx 18\\%$ better surrogate accuracy, and $<2\\%$ overhead. Robustness tests confirm improved resilience to correlation shifts, noise, and fidelity swaps, with gate values providing an interpretable reliability signal. Comparisons against GP-based and ablated models corroborate the benefits.\n\nThe study demonstrates that minimal, principled adjustments to surrogate coupling can yield significant gains. Future directions include input-dependent or per-dimension gating, joint optimisation of acquisition hyper-parameters with gate learning, and application to large-scale scientific design problems. The proposed gate is a drop-in upgrade for any stacked neural surrogate, offering an immediate path to more reliable and efficient multi-fidelity Bayesian optimisation."
+}
